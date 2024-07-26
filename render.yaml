@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: zoom-oauth-integration
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python schedule1.py"
+    plan: free
