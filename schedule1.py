@@ -2,9 +2,9 @@ import os
 import json
 import base64
 import requests
+from dotenv import load_dotenv
 
 # Load environment variables from .env file if available
-from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
@@ -24,6 +24,36 @@ def load_tokens():
 def save_tokens(tokens):
     with open(TOKEN_FILE, 'w') as f:
         json.dump(tokens, f)
+
+# Function to get authorization URL
+def get_authorization_url():
+    auth_url = (
+        "https://zoom.us/oauth/authorize"
+        f"?response_type=code&client_id={CLIENT_ID}"
+        f"&redirect_uri={REDIRECT_URI}"
+    )
+    print("Visit this URL to authorize:", auth_url)
+
+# Function to obtain tokens from authorization code
+def obtain_tokens(auth_code):
+    token_url = "https://zoom.us/oauth/token"
+    headers = {
+        "Authorization": f"Basic {base64.b64encode((CLIENT_ID + ':' + CLIENT_SECRET).encode()).decode()}",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    payload = {
+        "grant_type": "authorization_code",
+        "code": auth_code,
+        "redirect_uri": REDIRECT_URI
+    }
+    response = requests.post(token_url, headers=headers, data=payload)
+    response_data = response.json()
+    if 'access_token' in response_data and 'refresh_token' in response_data:
+        save_tokens(response_data)  
+        return response_data
+    else:
+        print("Failed to obtain tokens.")
+        return None
 
 # Function to refresh the access token
 def refresh_access_token(refresh_token):
@@ -80,6 +110,8 @@ def schedule_meeting(access_token):
         meeting = response.json()
         return meeting.get('join_url')
     else:
+        print("Failed to schedule meeting. Status code:", response.status_code)
+        print("Response:", response.json())
         return None
 
 # Main function to be executed by the cron job
@@ -99,6 +131,7 @@ def main():
             print("Failed to refresh access token.")
     else:
         print("No refresh token found. Make sure to obtain one.")
+        get_authorization_url()
 
 if __name__ == "__main__":
     main()
